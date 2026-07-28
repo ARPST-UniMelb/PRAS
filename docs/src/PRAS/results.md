@@ -75,12 +75,14 @@ result objects can all be indexed into by region name. The table below outlines 
 these families are compatible with, as well as the levels of disaggregation
 they support.
 
-| Result Specification | Units | SMC | Sample | Region | Timestep | Region + Timestep |
-|----------------------|-------|-----|--------|--------|---------|------------------|
-| `Shortfall`          | Energy | •   |        | •      | •       | •               |
-| `ShortfallSamples`   | Energy | •   | •      | •      | •       | •               |
-| `Surplus`            | Power  | •   |        |        | •       | •               |
-| `SurplusSamples`     | Power  | •   | •      |        | •       | •               |
+| Result Specification               | Units | SMC | Sample | Region | Timestep | Region + Timestep |
+|------------------------------------|-------|-----|--------|--------|---------|------------------|
+| `Shortfall`                        | Energy | •   |        | •      | •       | •               |
+| `ShortfallSamples`                 | Energy | •   | •      | •      | •       | •               |
+| `DemandResponseShortfall`          | Energy | •   |        | •      | •       | •               |
+| `DemandResponseShortfallSamples`   | Energy | •   | •      | •      | •       | •               |
+| `Surplus`                          | Power  | •   |        |        | •       | •               |
+| `SurplusSamples`                   | Power  | •   | •      |        | •       | •               |
 
 *Table: Regional result specification characteristics.*
 
@@ -94,13 +96,23 @@ commonly used and reports average shortfall results, while
 `ShortfallSamples` provides more detailed results at the level of
 individual simulations (samples).
 
+If the system includes demand response units, demand response specific shortfall results
+can also be queried: (`DemandResponseShortfall` and `DemandResponseShortfallSamples`).
+
+Both demand response shortfall specifications provide the same accessor functions 
+as the system shortfall objects, but only record borrowed load from demand response 
+units that was unable to be repaid and is therefore classified as unserved energy. 
+Note that the system shortfall object is inclusive of any attributable demand response shortfall, 
+and therefore the two should never be added together. Similar period and region 
+specific metrics can be obtained to the metrics mentioned below in the system shortfall object.
+
 Shortfall result objects can be indexed into by region, timestep, both region
 and timestep, or neither. Indexing on neither (via `result[]`) reports
 the total shortfall across all regions and time periods.
 
 Shortfall results are unique among the built-in result types in that the raw
 results can also be converted to specific probabilistic risk metrics
-(**EUE** and **LOLE**). For sampling-based methods, both metric
+(**EUE**,  **LOLE**, or **CVAR**). For sampling-based methods, both metric
 estimates and the standard error of those estimates are provided. For example,
 after assessing the system, metrics across all regions and the full simulation
 horizon can be extracted as:
@@ -109,6 +121,7 @@ horizon can be extracted as:
 shortfall, = assess(sys, SequentialMonteCarlo(), Shortfall())
 eue_overall = EUE(shortfall)
 lole_overall = LOLE(shortfall)
+ue_cvar_overall = CVAR(:energy, shortfall, 0.95)
 ```
 
 More specific metrics can be obtained as well:
@@ -212,11 +225,14 @@ the levels of disaggregation they support.
 | `GeneratorAvailability` | -- | •   | •      |      |         | •              |
 | `StorageAvailability` | -- | •   | •      |      |         | •              |
 | `GeneratorStorageAvailability` | -- | •   | •      |      |         | •              |
+| `DemandResponseAvailability` | -- | •   | •      |      |         | •              |
 | `LineAvailability` | -- | •   | •      |      |         | •              |
 | `StorageEnergy` | Energy | •   |        |      | •       | •              |
 | `StorageEnergySamples` | Energy | •   | •      |      | •       | •              |
 | `GeneratorStorageEnergy` | Energy | •   |        |      | •       | •              |
 | `GeneratorStorageEnergySamples` | Energy | •   | •      |      | •       | •              |
+| `DemandResponseEnergy` | Energy | •   |        |      | •       | •              |
+| `DemandResponseEnergySamples` | Energy | •   | •      |      | •       | •              |
 
 *Table: Unit result specification characteristics.*
 
@@ -224,10 +240,10 @@ the levels of disaggregation they support.
 
 The Availability family of result specifications
 (`GeneratorAvailability`, `StorageAvailability`,
-`GeneratorStorageAvailability`, and `LineAvailability`) reports the availability state
+`GeneratorStorageAvailability`, `DemandResponseAvailability`, and `LineAvailability`) reports the availability state
 (available, or unavailable due to an unplanned outage) of individual units in
-the simulation. The four result specification variants correspond to the four
-categories of resources: generators, storages, generator-storages, and
+the simulation. The five result specification variants correspond to the five
+categories of resources: generators, storages, generator-storages, demand responses, and
 lines. Availability is reported as a boolean value (with `true`
 indicating the unit is available, and `false` indicating it isn't), and
 is always disaggregated by unit, timestep, and sample.
@@ -235,12 +251,13 @@ is always disaggregated by unit, timestep, and sample.
 ### Energy
 
 The Energy family of result specifications (`StorageEnergy`,
-`StorageEnergySamples`, `GeneratorStorageEnergy`, and
-`GeneratorStorageEnergySamples`) reports the energy state-of-charge
-associated with individual energy-limited resources. Result specification
+`StorageEnergySamples`, `GeneratorStorageEnergy`,
+`GeneratorStorageEnergySamples`, `DemandResponseEnergy`, and 
+`DemandResponseEnergySamples`)  reports the energy state-of-charge or 
+borrowed load associated with individual energy-limited resources. Result specification
 variants are available for selecting the category of energy-limited resource
-(storage or generator-storage) to report, as well as for requesting
+(storage, generator-storage, or demand response) to report, as well as for requesting
 sample-level disaggregation. Energy is always disaggregated by timestep and
-may also be disaggregated by unit (get the state of charge of a single
-unit) or aggregated across the system (get the sum of states of charge
-of all storage devices in the system).
+may also be disaggregated by unit (get the state of charge or borrowed load of a single
+unit) or aggregated across the system (get the sum of states of charge or borrowed loads
+of all component devices in the system).

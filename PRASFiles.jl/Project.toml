@@ -1,12 +1,12 @@
 name = "PRASFiles"
 uuid = "a2806276-6d43-4ef5-91c0-491704cd7cf1"
 authors = [
-    "Gord Stephen <Gord.Stephen@nrel.gov>", 
-    "Surya Chandan Dhulipala <SuryaChandan.Dhulipala@nrel.gov>",
-    "Srihari Sundar <Hari.Sundar@nrel.gov>",
-    "Julian Florez <Julian.Florez@nrel.gov",
+    "Surya Chandan Dhulipala <SuryaChandan.Dhulipala@nlr.gov>",
+    "Srihari Sundar <Hari.Sundar@nlr.gov>",
+    "Julian Florez <Julian.Florez@nlr.gov",
+    "Gord Stephen <g.stephen@imperial.ac.uk>"
 ]
-version = "0.8.0"
+version = "0.9.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -21,7 +21,7 @@ TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
 Dates = "1"
 HDF5 = "0.16,0.17"
 JSON3 = "1.14"
-PRASCore = "0.8.0"
+PRASCore = "0.9.0"
 StatsBase = "0.34"
 StructTypes = "1.11"
 TimeZones = "1"
