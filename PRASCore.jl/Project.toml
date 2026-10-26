@@ -3,7 +3,9 @@ uuid = "c5c32b99-e7c3-4530-a685-6f76e19f7fe2"
 authors = [
     "Surya Chandan Dhulipala <SuryaChandan.Dhulipala@nlr.gov>",
     "Srihari Sundar <Hari.Sundar@nlr.gov>",
-    "Julian Florez <Julian.Florez@nlr.gov>",
+    "Akrivi Liakopoulou <Akrivi.Liakopoulou@nlr.gov>",
+    "Abdelrahman Ayad <abdelrahman.ayad@nlr.gov",
+    "Julian Florez <julianflorez333@gmail.com>",
     "Gord Stephen <g.stephen@imperial.ac.uk>"
 ]
 version = "0.8.0"

@@ -5,6 +5,7 @@ import OnlineStats: Series
 import OnlineStatsBase: EqualWeight, Mean, Variance, value
 import Printf: @sprintf
 import StatsBase: mean, std, stderror, quantile
+import Dates: Date
 
 import ..Systems: SystemModel, ZonedDateTime, Period,
                   PowerUnit, EnergyUnit, conversionfactor,
@@ -12,7 +13,7 @@ import ..Systems: SystemModel, ZonedDateTime, Period,
 export
 
     # Metrics
-    ReliabilityMetric, LOLE, EUE, NEUE,
+    ReliabilityMetric, LOLE, EUE, NEUE, LOLD,
     val, stderror, CVAR, NCVAR,
 
     # Result specifications
@@ -33,6 +34,8 @@ include("utils.jl")
 abstract type ResultSpec end
 
 abstract type ResultAccumulator{R<:ResultSpec} end
+
+usesamplepartitions(::ResultSpec) = false
 
 abstract type Result{
     N, # Number of timesteps simulated
@@ -89,6 +92,16 @@ end
 
 NCVAR(x::AbstractShortfallResult, cvar::CVAR, ::Colon) =
     NCVAR.(x, cvar, x.regions.names)
+
+LOLD(x::AbstractShortfallResult, ::Colon, d::Date) =
+    LOLD.(x, x.regions.names, d)
+
+LOLD(x::AbstractShortfallResult, r::AbstractString, ::Colon) =
+    LOLD.(x, r, _unique_days(x.timestamps))
+
+LOLD(x::AbstractShortfallResult, ::Colon, ::Colon) =
+    LOLD.(x, x.regions.names, permutedims(_unique_days(x.timestamps)))
+
 include("Shortfall.jl")
 include("ShortfallSamples.jl")
 
@@ -183,29 +196,68 @@ include("GeneratorStorageEnergySamples.jl")
 include("DemandResponseEnergySamples.jl")
 
 function resultchannel(
-    results::T, threads::Int
+    results::T, nworkers::Int
 ) where T <: Tuple{Vararg{ResultSpec}}
 
     types = accumulatortype.(results)
-    return Channel{Tuple{types...}}(threads)
+    return Channel{Tuple{Tuple{types...},UnitRange{Int}}}(nworkers)
 
 end
 
-merge!(xs::T, ys::T) where T <: Tuple{Vararg{ResultAccumulator}} =
-    foreach(merge!, xs, ys)
+function copy_sample_partition!(
+    x::A,
+    y::A,
+    sampleids::UnitRange{Int},
+) where {A<:ResultAccumulator}
+
+    xarr = sampledata(x)
+    yarr = sampledata(y)
+
+    xarr[:, :, sampleids] .= yarr
+    return
+end
 
 function finalize(
-    results::Channel{<:Tuple{Vararg{ResultAccumulator}}},
+    results::Channel{Tuple{A,UnitRange{Int}}},
     system::SystemModel{N,L,T,P,E},
-    threads::Int
-) where {N,L,T,P,E}
+    nworkers::Int,
+    nsamples::Int,
+    resultspecs::Tuple{Vararg{ResultSpec}},
+) where {A<:Tuple{Vararg{ResultAccumulator}},N,L,T,P,E}
 
-    total_result = take!(results)
+    first_recorders, first_sampleids = take!(results)
 
-    for _ in 2:threads
-        thread_result = take!(results)
-        merge!(total_result, thread_result)
+    if nworkers == 1 && first_sampleids == 1:nsamples
+        close(results)
+        return finalize.(first_recorders, system)
     end
+
+    total_result = map(resultspecs, first_recorders) do spec, recorder
+        usesamplepartitions(spec) ? accumulator(system, nsamples, spec) : recorder
+    end
+
+    for i in eachindex(total_result)
+        if usesamplepartitions(resultspecs[i])
+            copy_sample_partition!(
+                total_result[i], first_recorders[i], first_sampleids
+            )
+        end
+    end
+
+    for _ in 2:nworkers
+        thread_recorders, sampleids = take!(results)
+
+        for i in eachindex(total_result)
+            if usesamplepartitions(resultspecs[i])
+                copy_sample_partition!(
+                    total_result[i], thread_recorders[i], sampleids
+                )
+            else
+                merge!(total_result[i], thread_recorders[i])
+            end
+        end
+    end
+
     close(results)
 
     return finalize.(total_result, system)
